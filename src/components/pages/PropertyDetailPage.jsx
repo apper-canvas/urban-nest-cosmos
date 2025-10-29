@@ -321,9 +321,9 @@ const handleContact = () => {
                   size="lg"
                 />
               </div>
-              <FavoriteButton
+<FavoriteButton
                 isFavorite={isFavorite}
-                onToggleFavorite={handleToggleFavorite}
+                onToggle={handleToggleFavorite}
                 className="mt-2"
               />
             </div>
