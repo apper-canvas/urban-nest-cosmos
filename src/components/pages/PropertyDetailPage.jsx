@@ -1,28 +1,229 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "react-toastify";
+import { format } from "date-fns";
 import propertyService from "@/services/api/propertyService";
 import favoritesService from "@/services/api/favoritesService";
-import ImageGallery from "@/components/organisms/ImageGallery";
-import PropertyStats from "@/components/molecules/PropertyStats";
-import PriceTag from "@/components/molecules/PriceTag";
-import FavoriteButton from "@/components/molecules/FavoriteButton";
+import ApperIcon from "@/components/ApperIcon";
 import Badge from "@/components/atoms/Badge";
 import Button from "@/components/atoms/Button";
+import ImageGallery from "@/components/organisms/ImageGallery";
 import Loading from "@/components/ui/Loading";
 import Error from "@/components/ui/Error";
-import ApperIcon from "@/components/ApperIcon";
-import { format } from "date-fns";
+import PriceTag from "@/components/molecules/PriceTag";
+import PropertyStats from "@/components/molecules/PropertyStats";
+import FavoriteButton from "@/components/molecules/FavoriteButton";
+
+const ContactDialog = ({ isOpen, onClose, type, propertyTitle }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    preferredDate: ""
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.phone) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (type === "message" && !formData.message) {
+      toast.error("Please enter your message");
+      return;
+    }
+
+    if (type === "viewing" && !formData.preferredDate) {
+      toast.error("Please select your preferred date");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    // Simulate form submission
+    const message = type === "message" 
+      ? "Your message has been sent successfully!" 
+      : "Viewing request sent! We'll contact you shortly.";
+    
+    toast.success(message);
+    
+    // Reset form
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      message: "",
+      preferredDate: ""
+    });
+    
+    onClose();
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-lg shadow-card-hover max-w-md w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-display text-primary mb-1">
+                  {type === "message" ? "Send Message" : "Schedule Viewing"}
+                </h2>
+                <p className="text-sm text-gray-600">{propertyTitle}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close dialog"
+              >
+                <ApperIcon name="X" size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="+1 (555) 123-4567"
+                  required
+                />
+              </div>
+
+              {type === "message" ? (
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                    Your Message *
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    value={formData.message}
+                    onChange={handleChange}
+                    rows="4"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
+                    placeholder="I'm interested in this property..."
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="preferredDate" className="block text-sm font-medium text-gray-700 mb-1">
+                    Preferred Date & Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="preferredDate"
+                    name="preferredDate"
+                    value={formData.preferredDate}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-primary text-white hover:bg-primary-dark"
+                >
+                  {type === "message" ? "Send Message" : "Schedule Viewing"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 const PropertyDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [property, setProperty] = useState(null);
+const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
-
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [contactType, setContactType] = useState("message");
   useEffect(() => {
     loadProperty();
     checkFavorite();
@@ -62,8 +263,14 @@ const PropertyDetailPage = () => {
     }
   };
 
-  const handleContact = () => {
-    toast.success("Contact form opened");
+const handleContact = () => {
+    setContactType("message");
+    setIsContactDialogOpen(true);
+  };
+
+  const handleSchedule = () => {
+    setContactType("viewing");
+    setIsContactDialogOpen(true);
   };
 
   if (loading) return <Loading type="detail" />;
@@ -221,6 +428,12 @@ const PropertyDetailPage = () => {
           </motion.div>
         </div>
       </div>
+<ContactDialog
+        isOpen={isContactDialogOpen}
+        onClose={() => setIsContactDialogOpen(false)}
+        type={contactType}
+        propertyTitle={property?.title}
+      />
     </div>
   );
 };
