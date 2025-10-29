@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { format } from "date-fns";
 import propertyService from "@/services/api/propertyService";
 import favoritesService from "@/services/api/favoritesService";
+import reviewService from "@/services/api/reviewService";
 import ApperIcon from "@/components/ApperIcon";
 import Badge from "@/components/atoms/Badge";
 import Button from "@/components/atoms/Button";
@@ -14,7 +15,9 @@ import Error from "@/components/ui/Error";
 import PriceTag from "@/components/molecules/PriceTag";
 import PropertyStats from "@/components/molecules/PropertyStats";
 import FavoriteButton from "@/components/molecules/FavoriteButton";
-
+import StarRating from "@/components/molecules/StarRating";
+import ReviewForm from "@/components/molecules/ReviewForm";
+import ReviewCard from "@/components/molecules/ReviewCard";
 const ContactDialog = ({ isOpen, onClose, type, propertyTitle }) => {
   const [formData, setFormData] = useState({
     name: "",
@@ -221,12 +224,19 @@ const PropertyDetailPage = () => {
 const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isFavorite, setIsFavorite] = useState(false);
+const [isFavorite, setIsFavorite] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [contactType, setContactType] = useState("message");
-  useEffect(() => {
+  const [reviews, setReviews] = useState([]);
+  const [reviewLoading, setReviewLoading] = useState(true);
+  const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [editingReview, setEditingReview] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+useEffect(() => {
     loadProperty();
     checkFavorite();
+    loadReviews();
   }, [id]);
 
   const loadProperty = async () => {
@@ -237,9 +247,26 @@ const [property, setProperty] = useState(null);
       setProperty(data);
     } catch (err) {
       setError(err.message);
-      toast.error("Failed to load property details");
+toast.error("Failed to load property details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    setReviewLoading(true);
+    try {
+      const [reviewsData, ratingData] = await Promise.all([
+        reviewService.getByPropertyId(id),
+        reviewService.getAverageRating(id)
+      ]);
+      setReviews(reviewsData);
+      setAverageRating(ratingData);
+    } catch (error) {
+      console.info(`apper_info: Got an error in reviewService.getByPropertyId. The error is: ${error.message}`);
+      toast.error("Failed to load reviews");
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -273,6 +300,35 @@ const handleContact = () => {
     setIsContactDialogOpen(true);
   };
 
+  const handleReviewSuccess = () => {
+    setShowReviewForm(false);
+    setEditingReview(null);
+    loadReviews();
+  };
+
+  const handleEditReview = (review) => {
+    setEditingReview(review);
+    setShowReviewForm(true);
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    setIsSubmitting(true);
+    try {
+      await reviewService.delete(reviewId);
+      toast.success('Review deleted successfully');
+      loadReviews();
+    } catch (error) {
+      console.info(`apper_info: Got an error in reviewService.delete. The error is: ${error.message}`);
+      toast.error(error.message || 'Failed to delete review');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelReview = () => {
+    setShowReviewForm(false);
+    setEditingReview(null);
+  };
   if (loading) return <Loading type="detail" />;
   if (error) return <Error message={error} onRetry={loadProperty} />;
   if (!property) return <Error message="Property not found" />;
@@ -371,6 +427,68 @@ const handleContact = () => {
                   {format(new Date(property.dateListedTimestamp), "MMM d, yyyy")}
                 </p>
               </div>
+</div>
+
+            {/* Reviews Section */}
+            <div className="border-t border-gray-200 pt-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-display font-bold text-gray-900">
+                    Community Reviews
+                  </h2>
+                  {averageRating.count > 0 && (
+                    <div className="flex items-center gap-3 mt-2">
+                      <StarRating rating={averageRating.average} readonly size={20} />
+                      <span className="text-sm text-gray-600">
+                        Based on {averageRating.count} review{averageRating.count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {!showReviewForm && (
+                  <Button onClick={() => setShowReviewForm(true)}>
+                    <ApperIcon name="Plus" size={16} className="mr-2" />
+                    Write Review
+                  </Button>
+                )}
+              </div>
+
+              {showReviewForm && (
+                <div className="mb-6">
+                  <ReviewForm
+                    propertyId={id}
+                    existingReview={editingReview}
+                    onSuccess={handleReviewSuccess}
+                    onCancel={handleCancelReview}
+                  />
+                </div>
+              )}
+
+              {reviewLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loading type="spinner" />
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <ApperIcon name="MessageSquare" size={48} className="mx-auto text-gray-400 mb-3" />
+                  <p className="text-gray-600">No reviews yet</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Be the first to share your experience
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <ReviewCard
+                      key={review.Id}
+                      review={review}
+                      currentUserId={999}
+                      onEdit={handleEditReview}
+                      onDelete={handleDeleteReview}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
