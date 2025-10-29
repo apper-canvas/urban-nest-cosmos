@@ -2,26 +2,23 @@ import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { router } from "@/router";
 import React from "react";
-import Header from "@/components/organisms/Header";
 
 function App() {
   return (
-    <div className="min-h-screen bg-background">
-        <Header />
-        <main>
-            <RouterProvider router={router} />
-            <ToastContainer
-                position="top-right"
-                autoClose={3000}
-                hideProgressBar={false}
-                newestOnTop
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-pauseOnHover />
-        </main>
-    </div>
+    <>
+      <RouterProvider router={router} />
+      <ToastContainer 
+        position="top-right" 
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </>
   );
 }
 
